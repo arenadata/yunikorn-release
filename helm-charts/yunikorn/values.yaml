@@ -78,6 +78,20 @@ service:
   port: 9080
   portWeb: 9889
 
+# Extra volumes and volume mounts for the scheduler container. Use these to mount, for
+# example, TLS certs for the metrics endpoint when service.metricsTlsEnabled is set in
+# yunikornDefaults (below). extraVolumeMounts is applied to the scheduler container;
+# extraVolumes is added to the pod spec. Both default to empty (nothing is mounted).
+extraVolumeMounts: []
+#  - name: metrics-tls
+#    mountPath: /etc/yunikorn/tls
+#    readOnly: true
+extraVolumes: []
+#  - name: metrics-tls
+#    secret:
+#      secretName: yunikorn-metrics-tls   # keys: tls.crt / tls.key
+#      defaultMode: 0440
+
 ingress:
   enabled: false
   ingressClassName: ""
@@ -112,6 +126,10 @@ goGC: 100
 #   service.placeholderRunAsUser: 65534
 #   service.placeholderRunAsGroup: 65534
 #   service.placeholderFsGroup: 65534
+#   # Metrics endpoint TLS (mount the cert/key via service.metricsTls.secretName above):
+#   service.metricsTlsEnabled: "true"
+#   service.metricsTlsCertFile: "/etc/yunikorn/tls/tls.crt"
+#   service.metricsTlsKeyFile: "/etc/yunikorn/tls/tls.key"
 #   admissionController.filtering.processNamespaces: "example"
 #   admissionController.filtering.bypassNamespaces: "kube-system"
 #   admissionController.filtering.labelNamespaces
