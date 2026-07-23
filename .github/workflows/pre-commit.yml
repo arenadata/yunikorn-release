@@ -19,6 +19,7 @@ on:
   pull_request:
     branches:
       - master
+      - 'ad/release-*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
