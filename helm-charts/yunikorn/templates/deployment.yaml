@@ -102,6 +102,9 @@ spec:
               {{- end }}
             - name: GOGC
               value: "{{ .Values.goGC }}"
+          {{- with .Values.envs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.schedulerSecurityContext }}
@@ -131,6 +134,9 @@ spec:
               {{- end }}
             - name: GOGC
               value: "{{ .Values.web.goGC }}"
+          {{- with .Values.web.envs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.web.resources | nindent 12 }}
           {{- with .Values.webSecurityContext }}

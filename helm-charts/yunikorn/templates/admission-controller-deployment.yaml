@@ -115,6 +115,9 @@ spec:
             {{- end }}
             - name: GOGC
               value: "{{ .Values.admissionController.goGC }}"
+          {{- with .Values.admissionController.envs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 9089
               name: webhook-api

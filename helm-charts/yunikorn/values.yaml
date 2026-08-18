@@ -54,6 +54,8 @@ admissionController:
       memory: 500Mi
   goMemoryLimitPercentage: 60
   goGC: 100
+  # Extra environment variables for the admission controller container, appended to the chart's own.
+  envs: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -77,6 +79,8 @@ web:
       memory: 500Mi
   goMemoryLimitPercentage: 60
   goGC: 100
+  # Extra environment variables for the web container, appended to the chart's own.
+  envs: []
   # Extra volume mounts for the web container. The volumes themselves must be declared
   # in extraVolumes (below), which is shared by all containers in the pod.
   extraVolumeMounts: []
@@ -85,6 +89,18 @@ service:
   type: ClusterIP
   port: 9080
   portWeb: 9889
+
+# Extra environment variables for the scheduler container, appended to the chart's own.
+# These cannot override a variable the chart already sets (the first entry in the list
+# wins at runtime); use the dedicated goGC / goMemoryLimitPercentage knobs for those.
+envs: []
+#  - name: HTTP_PROXY
+#    value: "http://proxy.example.com:3128"
+#  - name: MY_SECRET
+#    valueFrom:
+#      secretKeyRef:
+#        name: my-secret
+#        key: token
 
 # Extra volumes and volume mounts for the scheduler container. Use these to mount, for
 # example, TLS certs for the metrics endpoint when service.metricsTlsEnabled is set in
