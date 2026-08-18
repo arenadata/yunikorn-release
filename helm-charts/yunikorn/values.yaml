@@ -72,6 +72,9 @@ web:
       memory: 500Mi
   goMemoryLimitPercentage: 60
   goGC: 100
+  # Extra volume mounts for the web container. The volumes themselves must be declared
+  # in extraVolumes (below), which is shared by all containers in the pod.
+  extraVolumeMounts: []
 
 service:
   type: ClusterIP
@@ -80,8 +83,9 @@ service:
 
 # Extra volumes and volume mounts for the scheduler container. Use these to mount, for
 # example, TLS certs for the metrics endpoint when service.metricsTlsEnabled is set in
-# yunikornDefaults (below). extraVolumeMounts is applied to the scheduler container;
-# extraVolumes is added to the pod spec. Both default to empty (nothing is mounted).
+# yunikornDefaults (below). extraVolumeMounts is applied to the scheduler container
+# (see web.extraVolumeMounts above for the web container); extraVolumes is added to the
+# pod spec and is shared by all containers. All default to empty (nothing is mounted).
 extraVolumeMounts: []
 #  - name: metrics-tls
 #    mountPath: /etc/yunikorn/tls
