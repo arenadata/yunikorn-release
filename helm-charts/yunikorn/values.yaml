@@ -56,6 +56,10 @@ admissionController:
   goGC: 100
   # Extra environment variables for the admission controller container, appended to the chart's own.
   envs: []
+  # Extra volume mounts for the admission controller container and extra volumes for its
+  # pod spec. Both are appended to the webhook secret volume the chart mounts itself.
+  extraVolumeMounts: []
+  extraVolumes: []
   nodeSelector: {}
   tolerations: []
   affinity: {}

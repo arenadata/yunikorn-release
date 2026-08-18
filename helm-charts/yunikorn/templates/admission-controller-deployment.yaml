@@ -100,6 +100,9 @@ spec:
             - name: admission-controller-secrets
               mountPath: /run/secrets/webhook
               readOnly: true
+          {{- with .Values.admissionController.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             - name: NAMESPACE
               valueFrom:
@@ -139,4 +142,7 @@ spec:
         - name: admission-controller-secrets
           secret:
             secretName: admission-controller-secrets
+      {{- with .Values.admissionController.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{ end }}
