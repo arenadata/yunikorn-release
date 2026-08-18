@@ -76,3 +76,14 @@ Soft memory limit: limits.memory (bytes) × (goMemoryLimitPercentage/100), round
         {{- include "yunikorn.resource-quantity" . | float64 | mulf $multi | ceil | int -}}
     {{- end }}
 {{- end -}}
+
+{{/*
+Full image reference: "<registry>/<repository>:<tag>". When the image has no registry set
+the repository is used unqualified. Call with an image dict, e.g. .Values.image
+*/}}
+{{- define "yunikorn.image" -}}
+{{- with .registry -}}
+{{- printf "%s/" (trimSuffix "/" .) -}}
+{{- end -}}
+{{- printf "%s:%s" .repository .tag -}}
+{{- end -}}

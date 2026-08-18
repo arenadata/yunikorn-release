@@ -24,6 +24,9 @@ hostNetwork: false
 priorityClassName: ""
 
 image:
+  # Container registry for this image; leave empty to pull the repository
+  # unqualified (Docker Hub by default).
+  registry: ""
   repository: apache/yunikorn
   tag: scheduler-latest
   pullPolicy: Always
@@ -35,6 +38,7 @@ affinity: {}
 admissionController:
   priorityClassName: ""
   image:
+    registry: ""
     repository: apache/yunikorn
     tag: admission-latest
     pullPolicy: Always
@@ -60,6 +64,7 @@ admissionController:
 
 web:
   image:
+    registry: ""
     repository: apache/yunikorn
     tag: web-latest
     pullPolicy: Always
