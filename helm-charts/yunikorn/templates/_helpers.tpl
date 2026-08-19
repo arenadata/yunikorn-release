@@ -80,10 +80,11 @@ Soft memory limit: limits.memory (bytes) × (goMemoryLimitPercentage/100), round
 {{/*
 Full image reference: "<registry>/<repository>:<tag>". When the image has no registry set
 the repository is used unqualified. Call with an image dict, e.g. .Values.image
+%v, not %s: an unquoted numeric tag arrives as an int64 or float64.
 */}}
 {{- define "yunikorn.image" -}}
 {{- with .registry -}}
 {{- printf "%s/" (trimSuffix "/" .) -}}
 {{- end -}}
-{{- printf "%s:%s" .repository .tag -}}
+{{- printf "%v:%v" .repository .tag -}}
 {{- end -}}

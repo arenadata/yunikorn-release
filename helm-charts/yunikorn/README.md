@@ -136,6 +136,64 @@ These parameters can be passed in via helm's `--set` and `--values (-f)` options
 
 In addition to these parameters, YuniKorn supports reading most of its runtime configuration directly from two ConfigMaps in the installed namespace: `yunikorn-defaults` and `yunikorn-configs`. The `yunikorn-defaults` ConfigMap is rendered by Helm based on the contents of the `yunikornDefaults` parameter. The `yunikorn-configs` ConfigMap is entirely ignored by Helm, and can be populated (or not) using external mechanisms. At runtime, YuniKorn will evaluate both ConfigMaps, using the contents of `yunikorn-configs` as an override to `yunikorn-defaults`.
 
+## Serving the REST API on a unix socket
+By default port 9080 carries the whole REST API: the `/ws/` endpoints the web UI needs, plus
+`/debug/stack`, `/debug/fullstatedump` and `/debug/pprof/*`. Setting
+`service.exposeMetricsOnly` reduces it to `/metrics` alone and moves `/ws/` onto a unix
+socket the web container reaches over a volume shared inside the scheduler pod; the debug
+and profiling endpoints cease to exist.
+
+There is no dedicated switch: it is assembled from the generic volume and environment
+parameters above.
+
+```
+yunikornDefaults:
+  service.exposeMetricsOnly: "true"
+
+extraVolumes:
+  - name: k8shim-socket
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: k8shim-socket
+    mountPath: /var/run/yunikorn
+
+envs:
+  - name: YUNIKORN_K8SHIM_SOCKET_PATH
+    value: /var/run/yunikorn/k8shim.sock
+
+web:
+  extraVolumeMounts:
+    - name: k8shim-socket
+      mountPath: /var/run/yunikorn
+  envs:
+    - name: YUNIKORN_K8SHIM_URL
+      value: unix:///var/run/yunikorn/k8shim.sock
+```
+
+All five parts are required: each container needs its own mount entry for the shared pod
+level volume, and both environment variables must name the same file. Leaving
+`YUNIKORN_K8SHIM_URL` at its default while `service.exposeMetricsOnly` is set breaks the UI,
+because 9080 no longer answers `/ws/`. `service.exposeMetricsOnly` takes effect only when
+the scheduler process starts.
+
+### File permissions
+The scheduler creates the socket owned by its own user and group with mode `0660`:
+
+- the published web image runs as root, which bypasses the permission check;
+- a web container pinned to a non-root user needs the scheduler's group, through
+  `webSecurityContext.runAsGroup` or a pod level `podSecurityContext.fsGroup`. `fsGroup` is
+  simpler: it makes the volume set-group-id, so the socket inherits that group and every
+  container receives it as a supplementary group.
+
+### Authentication
+The socket carries plain HTTP, so `YUNIKORN_K8SHIM_TLS_*` on the web side is rejected at
+startup and an `mtls` scheduler configuration cannot be satisfied over it. Use a shared
+secret: `YUNIKORN_K8SHIM_AUTH_SHARED_SECRET` on the web container and
+`YUNIKORN_AUTH_MODE=shared_secret` with the same `YUNIKORN_AUTH_SHARED_SECRET` on the
+scheduler. With neither set the socket serves the API unauthenticated, leaving the file
+permissions above as the only access control.
+
 ## Deprecated Configuration
 The following settings have been deprecated. The new percentage based settings have precedence over the deprecated settings.
 The deprecated settings will only be used as a fallback if the new percentage based settings are not present.
