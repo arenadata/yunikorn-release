@@ -70,6 +70,7 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 | `imagePullSecrets`                              | Docker repository secrets                                                                             | `[]`                            |
 | `serviceAccount`                                | Service account name                                                                                  | `yunikorn-admin`                |
 | `hostNetwork`                                   | Whether scheduler should run in the host network                                                      | `false`                         |
+| `image.registry`                                | Scheduler image registry, empty means unqualified (Docker Hub)                                        | `""`                            |
 | `image.repository`                              | Scheduler image repository                                                                            | `apache/yunikorn`               |
 | `image.tag`                                     | Scheduler image tag                                                                                   | `scheduler-latest`              |
 | `image.pullPolicy`                              | Scheduler image pull policy                                                                           | `Always`                        |
@@ -79,6 +80,7 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 | `admissionController.podAnnotations`            | Admission controller pod annotations                                                                  | `{}`                            |
 | `admissionController.replicaCount`              | Admission controller replicas to be deployed                                                          | `1`                             |
 | `admissionController.serviceAccount`            | Admission controller service account name                                                             | `yunikorn-admission-controller` |
+| `admissionController.image.registry`            | Admission controller image registry, empty means unqualified (Docker Hub)                             | `""`                            |
 | `admissionController.image.repository`          | Admission controller image repository                                                                 | `apache/yunikorn`               |
 | `admissionController.image.tag`                 | Admission controller image tag                                                                        | `admission-latest`              |
 | `admissionController.image.pullPolicy`          | Admission controller image pull policy                                                                | `Always`                        |
@@ -89,6 +91,9 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 | `admissionController.resources.limits.memory`   | Admission controller memory resource limit                                                            | `500Mi`                         |
 | `admissionController.goMemoryLimitPercentage`   | Percentage to calculate the GOMEMLIMIT value with based on the container's `resources.limits.memory`  | `60`                            |
 | `admissionController.goGC`                      | Admission controller GC threshold (GOGC)                                                              | `100`                           |
+| `admissionController.envs`                      | Extra environment variables for the admission controller container                                    | `[]`                            |
+| `admissionController.extraVolumeMounts`         | Extra volume mounts for the admission controller container                                            | `[]`                            |
+| `admissionController.extraVolumes`              | Extra volumes added to the admission controller pod spec                                              | `[]`                            |
 | `admissionController.nodeSelector`              | Admission controller deployment nodeSelector(s)                                                       | `{}`                            |
 | `admissionController.tolerations`               | Admission controller deployment tolerations                                                           | `[]`                            |
 | `admissionController.affinity`                  | Admission controller deployment affinity                                                              | `{}`                            |
@@ -104,6 +109,10 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 | `resources.limits.memory`                       | Memory resource limit                                                                                 | `2Gi`                           |
 | `goMemoryLimitPercentage`                       | Percentage to calculate the GOMEMLIMIT value with based on the container's `resources.limits.memory`  | `80`                            |
 | `goGC`                                          | GC threshold (GOGC)                                                                                   | `100`                           |
+| `envs`                                          | Extra environment variables for the scheduler container                                               | `[]`                            |
+| `extraVolumeMounts`                             | Extra volume mounts for the scheduler container                                                       | `[]`                            |
+| `extraVolumes`                                  | Extra volumes added to the scheduler pod spec, shared by all its containers                           | `[]`                            |
+| `web.image.registry`                            | Web app image registry, empty means unqualified (Docker Hub)                                          | `""`                            |
 | `web.image.repository`                          | Web app image repository                                                                              | `apache/yunikorn`               |
 | `web.image.tag`                                 | Web app image tag                                                                                     | `web-latest`                    |
 | `web.image.pullPolicy`                          | Web app image pull policy                                                                             | `Always`                        |
@@ -113,6 +122,8 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 | `web.resources.limits.memory`                   | Web app memory resource limit                                                                         | `500Mi`                         |
 | `web.goMemoryLimitPercentage`                   | Percentage to calculate the GOMEMLIMIT value with based on the container's `resources.limits.memory`  | `60`                            |
 | `web.goGC`                                      | Web app GC threshold (GOGC)                                                                           | `100`                           |
+| `web.envs`                                      | Extra environment variables for the web container                                                     | `[]`                            |
+| `web.extraVolumeMounts`                         | Extra volume mounts for the web container                                                             | `[]`                            |
 | `embedAdmissionController`                      | Flag for enabling/disabling the admission controller                                                  | `true`                          |
 | `enableWebService`                              | Flag for enabling/disabling web service                                                               | `true`                          |
 | `nodeSelector`                                  | Scheduler deployment nodeSelector(s)                                                                  | `{}`                            |
@@ -124,6 +135,64 @@ The following table lists the configurable parameters of the YuniKorn chart and 
 These parameters can be passed in via helm's `--set` and `--values (-f)` options, such as `--set resources.requests.cpu=2000m` or `-f myvalues.yaml`.
 
 In addition to these parameters, YuniKorn supports reading most of its runtime configuration directly from two ConfigMaps in the installed namespace: `yunikorn-defaults` and `yunikorn-configs`. The `yunikorn-defaults` ConfigMap is rendered by Helm based on the contents of the `yunikornDefaults` parameter. The `yunikorn-configs` ConfigMap is entirely ignored by Helm, and can be populated (or not) using external mechanisms. At runtime, YuniKorn will evaluate both ConfigMaps, using the contents of `yunikorn-configs` as an override to `yunikorn-defaults`.
+
+## Serving the REST API on a unix socket
+By default port 9080 carries the whole REST API: the `/ws/` endpoints the web UI needs, plus
+`/debug/stack`, `/debug/fullstatedump` and `/debug/pprof/*`. Setting
+`service.exposeMetricsOnly` reduces it to `/metrics` alone and moves `/ws/` onto a unix
+socket the web container reaches over a volume shared inside the scheduler pod; the debug
+and profiling endpoints cease to exist.
+
+There is no dedicated switch: it is assembled from the generic volume and environment
+parameters above.
+
+```
+yunikornDefaults:
+  service.exposeMetricsOnly: "true"
+
+extraVolumes:
+  - name: k8shim-socket
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: k8shim-socket
+    mountPath: /var/run/yunikorn
+
+envs:
+  - name: YUNIKORN_K8SHIM_SOCKET_PATH
+    value: /var/run/yunikorn/k8shim.sock
+
+web:
+  extraVolumeMounts:
+    - name: k8shim-socket
+      mountPath: /var/run/yunikorn
+  envs:
+    - name: YUNIKORN_K8SHIM_URL
+      value: unix:///var/run/yunikorn/k8shim.sock
+```
+
+All five parts are required: each container needs its own mount entry for the shared pod
+level volume, and both environment variables must name the same file. Leaving
+`YUNIKORN_K8SHIM_URL` at its default while `service.exposeMetricsOnly` is set breaks the UI,
+because 9080 no longer answers `/ws/`. `service.exposeMetricsOnly` takes effect only when
+the scheduler process starts.
+
+### File permissions
+The scheduler creates the socket owned by its own user and group with mode `0660`:
+
+- the published web image runs as root, which bypasses the permission check;
+- a web container pinned to a non-root user needs the scheduler's group, through
+  `webSecurityContext.runAsGroup` or a pod level `podSecurityContext.fsGroup`. `fsGroup` is
+  simpler: it makes the volume set-group-id, so the socket inherits that group and every
+  container receives it as a supplementary group.
+
+### Authentication
+The socket carries plain HTTP, so `YUNIKORN_K8SHIM_TLS_*` on the web side is rejected at
+startup and an `mtls` scheduler configuration cannot be satisfied over it. Use a shared
+secret: `YUNIKORN_K8SHIM_AUTH_SHARED_SECRET` on the web container and
+`YUNIKORN_AUTH_MODE=shared_secret` with the same `YUNIKORN_AUTH_SHARED_SECRET` on the
+scheduler. With neither set the socket serves the API unauthenticated, leaving the file
+permissions above as the only access control.
 
 ## Deprecated Configuration
 The following settings have been deprecated. The new percentage based settings have precedence over the deprecated settings.

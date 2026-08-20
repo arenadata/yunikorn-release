@@ -81,7 +81,7 @@ spec:
       {{- end }}
       containers:
         - name: yunikorn-scheduler-k8s
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ include "yunikorn.image" .Values.image }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http1
@@ -102,6 +102,9 @@ spec:
               {{- end }}
             - name: GOGC
               value: "{{ .Values.goGC }}"
+          {{- with .Values.envs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.schedulerSecurityContext }}
@@ -114,7 +117,7 @@ spec:
           {{- end }}
         {{- if .Values.enableWebService }}
         - name: yunikorn-scheduler-web
-          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          image: "{{ include "yunikorn.image" .Values.web.image }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           ports:
             - name: http2
@@ -131,10 +134,17 @@ spec:
               {{- end }}
             - name: GOGC
               value: "{{ .Values.web.goGC }}"
+          {{- with .Values.web.envs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.web.resources | nindent 12 }}
           {{- with .Values.webSecurityContext }}
           securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.web.extraVolumeMounts }}
+          volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- end }}

@@ -24,6 +24,9 @@ hostNetwork: false
 priorityClassName: ""
 
 image:
+  # Container registry for this image; leave empty to pull the repository
+  # unqualified (Docker Hub by default).
+  registry: ""
   repository: apache/yunikorn
   tag: scheduler-latest
   pullPolicy: Always
@@ -35,6 +38,7 @@ affinity: {}
 admissionController:
   priorityClassName: ""
   image:
+    registry: ""
     repository: apache/yunikorn
     tag: admission-latest
     pullPolicy: Always
@@ -50,6 +54,15 @@ admissionController:
       memory: 500Mi
   goMemoryLimitPercentage: 60
   goGC: 100
+  # Extra environment variables for the admission controller container, appended after the
+  # chart's own. A duplicate name overrides the chart's value.
+  envs: []
+  # Extra volume mounts for the admission controller container and extra volumes for its
+  # pod spec. Both are appended to the webhook secret volume the chart mounts itself, whose
+  # name "admission-controller-secrets" is reserved: reusing it renders and lints cleanly,
+  # but the API server rejects it as a duplicate volume name.
+  extraVolumeMounts: []
+  extraVolumes: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -60,6 +73,7 @@ admissionController:
 
 web:
   image:
+    registry: ""
     repository: apache/yunikorn
     tag: web-latest
     pullPolicy: Always
@@ -72,25 +86,57 @@ web:
       memory: 500Mi
   goMemoryLimitPercentage: 60
   goGC: 100
+  # Extra environment variables for the web container, appended after the chart's own.
+  # A duplicate name overrides the chart's value, as with the scheduler envs below.
+  envs: []
+  #  - name: YUNIKORN_K8SHIM_URL
+  #    value: unix:///var/run/yunikorn/k8shim.sock
+  # Extra volume mounts for the web container. The volumes themselves must be declared
+  # in extraVolumes (below), which is shared by all containers in the pod.
+  extraVolumeMounts: []
+  #  - name: k8shim-socket
+  #    mountPath: /var/run/yunikorn
 
 service:
   type: ClusterIP
   port: 9080
   portWeb: 9889
 
+# Extra environment variables for the scheduler container, appended after the chart's own.
+# A duplicate name overrides the chart's value, because the runtime keeps the last entry -
+# prefer the dedicated goGC / goMemoryLimitPercentage knobs over shadowing GOGC/GOMEMLIMIT.
+envs: []
+#  - name: HTTP_PROXY
+#    value: "http://proxy.example.com:3128"
+#  - name: MY_SECRET
+#    valueFrom:
+#      secretKeyRef:
+#        name: my-secret
+#        key: token
+#  # REST API on a unix socket shared with the web container, see the chart README
+#  - name: YUNIKORN_K8SHIM_SOCKET_PATH
+#    value: /var/run/yunikorn/k8shim.sock
+
 # Extra volumes and volume mounts for the scheduler container. Use these to mount, for
 # example, TLS certs for the metrics endpoint when service.metricsTlsEnabled is set in
-# yunikornDefaults (below). extraVolumeMounts is applied to the scheduler container;
-# extraVolumes is added to the pod spec. Both default to empty (nothing is mounted).
+# yunikornDefaults (below). extraVolumeMounts is applied to the scheduler container
+# (see web.extraVolumeMounts above for the web container); extraVolumes is added to the
+# pod spec and is shared by all containers. All default to empty (nothing is mounted).
 extraVolumeMounts: []
 #  - name: metrics-tls
 #    mountPath: /etc/yunikorn/tls
 #    readOnly: true
+#  - name: k8shim-socket
+#    mountPath: /var/run/yunikorn
 extraVolumes: []
 #  - name: metrics-tls
 #    secret:
 #      secretName: yunikorn-metrics-tls   # keys: tls.crt / tls.key
 #      defaultMode: 0440
+#  # carries the k8shim REST API socket between the scheduler and web containers;
+#  # both need it in their extraVolumeMounts
+#  - name: k8shim-socket
+#    emptyDir: {}
 
 ingress:
   enabled: false
@@ -130,6 +176,9 @@ goGC: 100
 #   service.metricsTlsEnabled: "true"
 #   service.metricsTlsCertFile: "/etc/yunikorn/tls/tls.crt"
 #   service.metricsTlsKeyFile: "/etc/yunikorn/tls/tls.key"
+#   # Publish only /metrics on :9080, serving the REST API on a unix socket instead.
+#   # Needs the socket volume and both env vars above, and a restart. See the README.
+#   service.exposeMetricsOnly: "true"
 #   admissionController.filtering.processNamespaces: "example"
 #   admissionController.filtering.bypassNamespaces: "kube-system"
 #   admissionController.filtering.labelNamespaces
